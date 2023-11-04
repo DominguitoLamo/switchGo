@@ -47,7 +47,7 @@ func SSHConfigCreate(user, password, hostname, port string) (*SSHConfig, error) 
  * @return 打开的SSHSession，执行的错误
  * @author shenbowei
  */
-func NewSSHSession(config SSHConfig) (*SSHSession, error) {
+func NewSSHSession(config *SSHConfig, brand string) (*SSHSession, error) {
 	sshSession := new(SSHSession)
 	if err := sshSession.createConnection(config); err != nil {
 		ErrorLog("NewSSHSession createConnection error:%s", err.Error())
@@ -62,7 +62,7 @@ func NewSSHSession(config SSHConfig) (*SSHSession, error) {
 		return nil, err
 	}
 	sshSession.lastUseTime = time.Now()
-	sshSession.brand = ""
+	sshSession.brand = brand
 	return sshSession, nil
 }
 
@@ -72,7 +72,7 @@ func NewSSHSession(config SSHConfig) (*SSHSession, error) {
  * @return 执行的错误
  * @author shenbowei
  */
-func (this *SSHSession) createConnection(config SSHConfig) error {
+func (this *SSHSession) createConnection(config *SSHConfig) error {
 	DebugLog("Begin connect to %s", config.ipPort)
 	client, err := ssh.Dial("tcp", config.ipPort, &ssh.ClientConfig{
 		User: config.user,
@@ -247,5 +247,76 @@ func (this *SSHSession) start() error {
 		default:
 			return output
 		}
+	}
+}
+
+
+/**
+ * SSHSession的关闭方法，会关闭session和输入输出管道
+ * @author shenbowei
+ */
+ func (this *SSHSession) Close() {
+	defer func() {
+		if err := recover(); err != nil {
+			ErrorLog("SSHSession Close err:%s", err)
+		}
+	}()
+	if err := this.session.Close(); err != nil {
+		ErrorLog("Close session err:%s", err.Error())
+	}
+	close(this.in)
+	close(this.out)
+}
+
+
+/**
+ * 获取最后的使用时间
+ * @return time.Time
+ * @author shenbowei
+ */
+ func (this *SSHSession) GetLastUseTime() time.Time {
+	return this.lastUseTime
+}
+
+/**
+ * 更新最后的使用时间
+ * @author shenbowei
+ */
+func (this *SSHSession) UpdateLastUseTime() {
+	this.lastUseTime = time.Now()
+}
+
+
+/**
+ * 检查当前session是否可用
+ * @return true:可用，false:不可用
+ * @author shenbowei
+ */
+ func (this *SSHSession) CheckSelf() bool {
+	defer func() {
+		if err := recover(); err != nil {
+			ErrorLog("SSHSession CheckSelf err:%s", err)
+		}
+	}()
+
+	this.WriteChannel("\n")
+	result := this.ReadChannelExpect(2*time.Second, "#", ">", "]")
+	if strings.Contains(result, "#") ||
+		strings.Contains(result, ">") ||
+		strings.Contains(result, "]") {
+		return true
+	}
+	return false
+}
+
+/**
+ * 向管道写入执行指令
+ * @param cmds... 执行的命令（可多条）
+ * @author shenbowei
+ */
+ func (this *SSHSession) WriteChannel(cmds ...string) {
+	DebugLog("WriteChannel <cmds=%v>", cmds)
+	for _, cmd := range cmds {
+		this.in <- cmd
 	}
 }

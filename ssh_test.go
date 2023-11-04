@@ -18,3 +18,18 @@ func TestSSHConfigCreate(t *testing.T) {
 	}
 	fmt.Println(sshConfig)
 }
+
+func TestNewSSHSession(t *testing.T) {
+	sshConfig, err := SSHConfigCreate("gpmadmin", "Iw30#c61", "10.3.1.60", "22")
+	if (err != nil) {
+		fmt.Println(err.Error())
+	}
+	session, err := NewSSHSession(sshConfig, CISCO)
+	fmt.Println(session.brand)
+}
+
+func TestSessionManager(t *testing.T) {
+	sessionManager := NewSessionManager()
+	config, _ := SSHConfigCreate("gpmadmin", "Iw30#c61", "10.3.1.60", "22")
+	sessionManager.GetSSHSession(config, CISCO)
+}

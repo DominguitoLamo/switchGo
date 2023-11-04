@@ -5,6 +5,21 @@ import (
 	"fmt"
 )
 
+func TestIpFormatValid(t *testing.T) {
+	if err := ipFormatValid("hello"); err != nil {
+		fmt.Println(err.Error())
+	}
+
+	if err := ipFormatValid("192.168.vv.100"); err != nil {
+		fmt.Println(err.Error())
+	}
+
+	if err := ipFormatValid("192.168.300.100"); err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+}
+
 func TestLog(t *testing.T) {
 	DebugLog("debug something")
 	InfoLog("information for something")

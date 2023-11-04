@@ -3,6 +3,7 @@ package switchgo
 import (
 	"errors"
 	"net"
+	"strconv"
 	"strings"
 	"time"
 
@@ -34,11 +35,35 @@ func SSHConfigCreate(user, password, hostname, port string) (*SSHConfig, error) 
 		return nil, errors.New("config empty")
 	}
 
+	if err := ipFormatValid(hostname); err != nil {
+		return nil, err
+	}
+
 	sshConfig := new(SSHConfig)
 	sshConfig.user = user
 	sshConfig.password = password
 	sshConfig.ipPort = hostname + ":" + port
 	return sshConfig, nil
+}
+
+func ipFormatValid(ip string) error {
+	numbers := strings.Split(ip, ".")
+	if (len(numbers) != 4) {
+		return errors.New("This is not IPV4 format!!!!")
+	}
+
+	for _, n := range numbers {
+		i, err := strconv.Atoi(n)
+		if (err != nil) {
+			return errors.New("Part of the ip is not number")
+		}
+
+		if (i < 0 || i > 255) {
+			return errors.New("Part of the ip number is not in the range from 0 to 255")
+		}
+	}
+
+	return nil
 }
 
 /**

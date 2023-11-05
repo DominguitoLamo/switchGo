@@ -1,4 +1,4 @@
-module chonlam.com/switchGo
+module github.com/switchGo
 
 go 1.21.3
 

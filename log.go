@@ -12,7 +12,7 @@ const (
 	ERROR = 4
 )
 
-const LOGLEVEL = 2
+const LOGLEVEL = 4
 
 func DebugLog(format string, s ...interface{}) {
 	if (LOGLEVEL > DEBUG) {

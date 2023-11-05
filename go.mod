@@ -1,4 +1,4 @@
-module github.com/switchGo
+module github.com/DominguitoLamo/switchGo
 
 go 1.21.3
 

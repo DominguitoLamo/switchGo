@@ -53,7 +53,7 @@ func NewSessionManager() *SessionManager {
  * @author shenbowei
  */
  func (this *SessionManager) GetSSHSession(config *SSHConfig, brand string) (*SSHSession, error) {
-	sessionKey := config.user + "_" + config.password + "_" + config.ipPort
+	sessionKey := config.GetSessionKey()
 	session := this.getSessionCache(sessionKey)
 	if session != nil {
 		//返回前要验证是否可用，不可用要重新创建并更新缓存
@@ -65,7 +65,7 @@ func NewSessionManager() *SessionManager {
 		DebugLog("Check session failed")
 	}
 	//如果不存在或者验证失败，需要重新连接，并更新缓存
-	if err := this.updateSession(config, sessionKey, brand); err != nil {
+	if err := this.updateSession(config, brand); err != nil {
 		ErrorLog("SSH session pool updateSession err:%s", err.Error())
 		return nil, err
 	} else {
@@ -96,8 +96,8 @@ func (this *SessionManager) setSessionCache(sessionKey string, session *SSHSessi
  * @return 执行的错误
  * @author shenbowei
  */
- func (this *SessionManager) updateSession(config *SSHConfig, sessionKey, brand string) error {
-	mySession, err := NewSSHSession(config, brand)
+ func (this *SessionManager) updateSession(config *SSHConfig, brand string) error {
+	mySession, err := NewSSHSession(config, brand, this)
 	if err != nil {
 		ErrorLog("NewSSHSession err:%s", err.Error())
 		return err
@@ -105,7 +105,7 @@ func (this *SessionManager) setSessionCache(sessionKey string, session *SSHSessi
 	//初始化session，包括等待登录输出和禁用分页
 	this.initSession(mySession)
 	//更新session的缓存
-	this.setSessionCache(sessionKey, mySession)
+	this.setSessionCache(config.GetSessionKey(), mySession)
 	return nil
 }
 
@@ -202,4 +202,10 @@ func (this *SessionManager) unlockSession(sessionKey string) {
 		}
 	}
 	return timeoutSessionIndex
+}
+
+func (this *SessionManager) DeleteSession(sessionKey string) {
+	this.sessionCacheLocker.Lock()
+	defer this.sessionCacheLocker.Unlock()
+	this.sessionCache[sessionKey] = nil
 }

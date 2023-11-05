@@ -17,6 +17,10 @@ type SSHConfig struct {
 	ipPort string
 }
 
+func (config *SSHConfig) GetSessionKey() string {
+	return config.user + "_" + config.password + "_" + config.ipPort
+}
+
 /**
  * 封装的ssh session，包含原生的ssh.Ssssion及其标准的输入输出管道，同时记录最后的使用时间
  * @attr   session:原生的ssh session，in:绑定了session标准输入的管道，out:绑定了session标准输出的管道，lastUseTime:最后的使用时间
@@ -24,10 +28,13 @@ type SSHConfig struct {
  */
  type SSHSession struct {
 	session     *ssh.Session
+	// user + password + ipport
+	sessionKey 	string
 	in          chan string
 	out         chan string
 	brand       string
 	lastUseTime time.Time
+	manager *SessionManager
 }
 
 func SSHConfigCreate(user, password, hostname, port string) (*SSHConfig, error) {
@@ -72,7 +79,7 @@ func ipFormatValid(ip string) error {
  * @return 打开的SSHSession，执行的错误
  * @author shenbowei
  */
-func NewSSHSession(config *SSHConfig, brand string) (*SSHSession, error) {
+func NewSSHSession(config *SSHConfig, brand string, manager *SessionManager) (*SSHSession, error) {
 	sshSession := new(SSHSession)
 	if err := sshSession.createConnection(config); err != nil {
 		ErrorLog("NewSSHSession createConnection error:%s", err.Error())
@@ -88,6 +95,8 @@ func NewSSHSession(config *SSHConfig, brand string) (*SSHSession, error) {
 	}
 	sshSession.lastUseTime = time.Now()
 	sshSession.brand = brand
+	sshSession.manager = manager
+	sshSession.sessionKey = config.GetSessionKey()
 	return sshSession, nil
 }
 
@@ -219,6 +228,49 @@ func (this *SSHSession) start() error {
 	return nil
 }
 
+func (sshSession *SSHSession) RunCmds(cmds ...string) (string, error) {
+	sshSession.WriteChannel(cmds...)
+	result := sshSession.ReadChannelTiming(2 * time.Second)
+	return result, nil
+}
+
+func (sshSession *SSHSession) RunCmdsAndClose(cmds ...string) (string, error) {
+	defer sshSession.Close()
+	return sshSession.RunCmds(cmds...)
+}
+
+/**
+ * 从输出管道中读取设备返回的执行结果，若输出流间隔超过timeout便会返回
+ * @param timeout 从设备读取不到数据时的超时等待时间（超过超时等待时间即认为设备的响应内容已经被完全读取）
+ * @return 从输出管道读出的返回结果
+ * @author shenbowei
+ */
+ func (this *SSHSession) ReadChannelTiming(timeout time.Duration) string {
+	DebugLog("%s ReadChannelTiming <wait timeout = %d>", this.sessionKey, timeout/time.Millisecond)
+	output := ""
+	isDelayed := false
+
+	for i := 0; i < 300; i++ { //最多从设备读取300次，避免方法无法返回
+		time.Sleep(time.Millisecond * 100) //每次睡眠0.1秒，使out管道中的数据能积累一段时间，避免过早触发default等待退出
+		newData := this.readChannelData()
+		DebugLog("%s ReadChannelTiming: read chanel buffer: %s", this.sessionKey, newData)
+		if newData != "" {
+			output += newData
+			isDelayed = false
+			continue
+		}
+		//如果之前已经等待过一次，则直接退出，否则就等待一次超时再重新读取内容
+		if !isDelayed {
+			DebugLog("%s ReadChannelTiming: delay for timeout.", this.sessionKey)
+			time.Sleep(timeout)
+			isDelayed = true
+		} else {
+			return output
+		}
+	}
+	return output
+}
+
 /**
  * 从输出管道中读取设备返回的执行结果，若输出流间隔超过timeout或者包含expects中的字符便会返回
  * @param timeout 从设备读取不到数据时的超时等待时间（超过超时等待时间即认为设备的响应内容已经被完全读取）, expects...:期望得到的字符（可多个），得到便返回
@@ -289,6 +341,7 @@ func (this *SSHSession) start() error {
 	if err := this.session.Close(); err != nil {
 		ErrorLog("Close session err:%s", err.Error())
 	}
+	this.manager.DeleteSession(this.sessionKey)
 	close(this.in)
 	close(this.out)
 }

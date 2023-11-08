@@ -52,7 +52,7 @@ func NewSessionManager() *SessionManager {
  * @return SSHSession
  * @author shenbowei
  */
- func (this *SessionManager) GetSSHSession(config *SSHConfig, brand string) (*SSHSession, error) {
+ func (this *SessionManager) GetSSHSession(config *SSHConfig) (*SSHSession, error) {
 	sessionKey := config.GetSessionKey()
 	session := this.getSessionCache(sessionKey)
 	if session != nil {
@@ -65,7 +65,7 @@ func NewSessionManager() *SessionManager {
 		DebugLog("Check session failed")
 	}
 	//如果不存在或者验证失败，需要重新连接，并更新缓存
-	if err := this.updateSession(config, brand); err != nil {
+	if err := this.updateSession(config, config.brand); err != nil {
 		ErrorLog("SSH session pool updateSession err:%s", err.Error())
 		return nil, err
 	} else {

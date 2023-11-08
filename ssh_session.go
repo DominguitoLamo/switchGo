@@ -15,6 +15,7 @@ type SSHConfig struct {
 	user string
 	password string
 	ipPort string
+	brand string
 }
 
 func (config *SSHConfig) GetSessionKey() string {
@@ -37,7 +38,7 @@ func (config *SSHConfig) GetSessionKey() string {
 	manager *SessionManager
 }
 
-func SSHConfigCreate(user, password, hostname, port string) (*SSHConfig, error) {
+func SSHConfigCreate(user, password, hostname, port, brand string) (*SSHConfig, error) {
 	if (user == "" || password == "" || hostname == "" || port == "") {
 		return nil, errors.New("config empty")
 	}
@@ -50,6 +51,7 @@ func SSHConfigCreate(user, password, hostname, port string) (*SSHConfig, error) 
 	sshConfig.user = user
 	sshConfig.password = password
 	sshConfig.ipPort = hostname + ":" + port
+	sshConfig.brand = brand
 	return sshConfig, nil
 }
 

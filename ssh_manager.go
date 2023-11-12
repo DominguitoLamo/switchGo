@@ -170,7 +170,9 @@ func (this *SessionManager) unlockSession(sessionKey string) {
 			this.sessionCacheLocker.Lock()
 			for _, sessionKey := range timeoutSessionIndex {
 				this.lockSession(sessionKey)
-				delete(this.sessionCache, sessionKey)
+				if _, ok := this.sessionCache[sessionKey]; ok {
+					delete(this.sessionCache, sessionKey)
+				}
 				this.unlockSession(sessionKey)
 			}
 			this.sessionCacheLocker.Unlock()

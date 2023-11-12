@@ -170,9 +170,6 @@ func (this *SessionManager) unlockSession(sessionKey string) {
 			this.sessionCacheLocker.Lock()
 			for _, sessionKey := range timeoutSessionIndex {
 				this.lockSession(sessionKey)
-				if _, ok := this.sessionCache[sessionKey]; ok {
-					delete(this.sessionCache, sessionKey)
-				}
 				this.unlockSession(sessionKey)
 			}
 			this.sessionCacheLocker.Unlock()
@@ -196,6 +193,10 @@ func (this *SessionManager) unlockSession(sessionKey string) {
 		}
 	}()
 	for sessionKey, sshSession := range this.sessionCache {
+		if (sshSession == nil) {
+			delete(this.sessionCache, sessionKey)
+			continue
+		}
 		timeDuratime := time.Since(sshSession.GetLastUseTime())
 		if timeDuratime.Minutes() > 10 {
 			DebugLog("RunAutoClean close session<%s, unuse time=%s>", sessionKey, timeDuratime.String())

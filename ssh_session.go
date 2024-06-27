@@ -246,26 +246,25 @@ func (sshSession *SSHSession) RunCmdsAndClose(cmds ...string) (string, error) {
  * @author shenbowei
  */
  func (this *SSHSession) ReadChannelTiming(timeout time.Duration) string {
-	DebugLog("%s ReadChannelTiming <wait timeout = %d>", this.sessionKey, timeout/time.Millisecond)
+	DebugLog("ReadChannelTiming <wait timeout = %d>", timeout/time.Millisecond)
 	output := ""
-	isDelayed := false
+	isDelayed := 3
 
-	for i := 0; i < 300; i++ { //最多从设备读取300次，避免方法无法返回
+	for i := 0; i < 3000; i++ { //最多从设备读取300次，避免方法无法返回
 		time.Sleep(time.Millisecond * 100) //每次睡眠0.1秒，使out管道中的数据能积累一段时间，避免过早触发default等待退出
 		newData := this.readChannelData()
-		DebugLog("%s ReadChannelTiming: read chanel buffer: %s", this.sessionKey, newData)
+		DebugLog("ReadChannelTiming: read chanel buffer: %s", newData)
 		if newData != "" {
 			output += newData
-			isDelayed = false
+			isDelayed = 10
 			continue
-		}
-		//如果之前已经等待过一次，则直接退出，否则就等待一次超时再重新读取内容
-		if !isDelayed {
-			DebugLog("%s ReadChannelTiming: delay for timeout.", this.sessionKey)
-			time.Sleep(timeout)
-			isDelayed = true
 		} else {
-			return output
+			DebugLog("ReadChannelTiming: delay for timeout: %d", isDelayed)
+			isDelayed--
+			time.Sleep(time.Second * 10)
+			if (isDelayed == 0) {
+				break
+			}
 		}
 	}
 	return output
